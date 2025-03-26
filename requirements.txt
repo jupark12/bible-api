@@ -1,0 +1,9 @@
+fastapi[standard]
+fastapi-users[asyncpg]
+uvicorn[standard]
+pytest
+asyncpg
+python-dotenv
+pyjwt
+passlib[bcrypt]
+python-multipart
