@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import verses
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from app import limiter
 
 app = FastAPI(title="Bible API", description="API for accessing Bible verses and chapters")
 
@@ -9,6 +12,13 @@ app = FastAPI(title="Bible API", description="API for accessing Bible verses and
 #     "http://localhost:3000",  # Example: Allow frontend on localhost:3000
 #     "https://yourfrontenddomain.com",  # Example: Allow your deployed frontend
 # ]
+
+# Set up a rate limiter (using IP address as the key)
+
+app.state.limiter = limiter
+
+# Add SlowAPIMiddleware for global rate limiting
+app.add_middleware(SlowAPIMiddleware)
 
 # Add CORS middleware
 app.add_middleware(
@@ -20,6 +30,11 @@ app.add_middleware(
 )
 
 app.include_router(verses.router)
+
+# Handle rate limit exceeded error
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_error(request, exc):
+    return HTTPException(status_code=429, detail="Rate limit exceeded. Please try again later.")
 
 # Use app.add_event_handler instead of on_event for startup and shutdown
 async def startup():
