@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import verses
+from app.routes import verses, auth
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from app import limiter
@@ -30,6 +30,7 @@ app.add_middleware(
 )
 
 app.include_router(verses.router)
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
 
 # Handle rate limit exceeded error
 @app.exception_handler(RateLimitExceeded)
