@@ -5,43 +5,16 @@ from app.models import UserCreate, UserInDB, User, UserLogin, TokenData
 from app.database import db_connection
 from datetime import timedelta
 from app.config import SECRET_KEY, ALGORITHM
-from jose import JWTError, jwt
-from pydantic import ValidationError
-
-# --- Add the dependency function get_current_user_from_cookie (as shown above) ---
-async def get_current_user_from_cookie(request: Request):
-    # ... (dependency code as above) ...
-    token = request.cookies.get("access_token")
-    print(token)
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-    )
-    if token is None: raise credentials_exception
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str | None = payload.get("sub")
-        if username is None: raise credentials_exception
-        token_data = TokenData(username=username)
-        print(token_data.username)
-    except (JWTError, ValidationError) as e:
-        raise credentials_exception
-    async with db_connection() as conn:
-        db_user_data = await conn.fetchrow("SELECT * FROM users WHERE username = $1", token_data.username)
-    if db_user_data is None: raise credentials_exception
-    try:
-        print(db_user_data)
-        user_in_db = UserInDB(**db_user_data)
-    except ValidationError as e:
-        raise HTTPException(status_code=500, detail="Error processing user data")
-    return user_in_db
+from app import limiter
+from app.utils import get_current_user_from_cookie
 
 # --- Define your existing router ---
 router = APIRouter()
 
 # --- Existing /register endpoint ---
 @router.post("/register", response_model=User)
-async def register_user(user: UserCreate):
+@limiter.limit("5/minute")
+async def register_user(request: Request, user: UserCreate):
     async with db_connection() as conn:
         existing_user = await conn.fetchrow("SELECT * FROM users WHERE username = $1 OR email = $2", user.username, user.email)
         if existing_user:
@@ -65,7 +38,8 @@ async def register_user(user: UserCreate):
 # --- Existing /login endpoint ---
 # Consider returning user data directly instead of just a message if needed by frontend immediately
 @router.post("/login")
-async def login_user(credentials: UserLogin): # Changed type hint to UserLogin
+@limiter.limit("10/minute")
+async def login_user(request: Request, credentials: UserLogin): # Changed type hint to UserLogin
     async with db_connection() as conn:
         # Fetch user by username only is usually sufficient for login if username is unique
         db_user_data = await conn.fetchrow("SELECT * FROM users WHERE username = $1", credentials.username)
@@ -105,7 +79,8 @@ async def login_user(credentials: UserLogin): # Changed type hint to UserLogin
 # --- NEW /users/me endpoint ---
 # Note: Added under the /auth prefix here, adjust prefix/router if needed
 @router.get("/users/me", response_model=User)
-async def read_users_me(current_user: UserInDB = Depends(get_current_user_from_cookie)):
+@limiter.limit("10/minute")
+async def read_users_me(request: Request, current_user: UserInDB = Depends(get_current_user_from_cookie)):
     """
     Get profile information for the currently authenticated user (via cookie).
     """
@@ -116,7 +91,8 @@ async def read_users_me(current_user: UserInDB = Depends(get_current_user_from_c
     return current_user
 
 @router.post("/logout")
-async def logout_user(response: JSONResponse = JSONResponse(content={"message": "Logout successful"})):
+@limiter.limit("10/minute")
+async def logout_user(request: Request, response: JSONResponse = JSONResponse(content={"message": "Logout successful"})):
     """
     Logs the user out by clearing the access_token cookie.
     """
