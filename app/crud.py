@@ -207,10 +207,10 @@ async def save_current_devotional(
         # Only inserting/updating the reflection field.
         query = """
             INSERT INTO devotionals (
-                user_id, reflection
+                user_id, devotional_date, reflection
             )
-            VALUES ($1, $2)
-            ON CONFLICT (user_id)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (user_id, devotional_date)
             DO UPDATE SET
                 reflection = EXCLUDED.reflection,
                 updated_at = CURRENT_TIMESTAMP -- Explicitly set update time on conflict
@@ -227,6 +227,7 @@ async def save_current_devotional(
         saved_record = await conn.fetchrow(
             query,
             user_id,
+            devotional_date,
             reflection
         )
 

@@ -26,7 +26,6 @@ def create_access_token(data: dict, expires_delta: timedelta = timedelta(hours=1
 async def get_current_user_from_cookie(request: Request):
     # ... (dependency code as above) ...
     token = request.cookies.get("access_token")
-    print(token)
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -37,14 +36,12 @@ async def get_current_user_from_cookie(request: Request):
         username: str | None = payload.get("sub")
         if username is None: raise credentials_exception
         token_data = TokenData(username=username)
-        print(token_data.username)
     except (JWTError, ValidationError) as e:
         raise credentials_exception
     async with db_connection() as conn:
         db_user_data = await conn.fetchrow("SELECT * FROM users WHERE username = $1", token_data.username)
     if db_user_data is None: raise credentials_exception
     try:
-        print(db_user_data)
         user_in_db = UserInDB(**db_user_data)
     except ValidationError as e:
         raise HTTPException(status_code=500, detail="Error processing user data")
