@@ -237,3 +237,95 @@ async def save_current_devotional(
 
         # Convert the asyncpg Record object to a dictionary
         return dict(saved_record)
+
+async def get_all_devotionals(
+    user_id: str,
+    limit: int = 50,
+    offset: int = 0, # Use for pagination
+    order_by: str = "devotional_date DESC" # Use for sorting
+):
+    """
+    Retrieves a paginated list of devotional entries for a specific user.
+
+    Args:
+        user_id: The ID of the user whose devotionals to fetch.
+        limit: Maximum number of records to return. Defaults to 50.
+        offset: Number of records to skip (for pagination). Defaults to 0.
+        order_by: Sort order string (e.g., "devotional_date DESC", "created_at ASC").
+                  Must be a column from allowed columns and direction (ASC/DESC).
+                  Defaults to "devotional_date DESC". Invalid inputs will use the default.
+
+    Returns:
+        A list of dictionaries, each representing a devotional record.
+        Returns an empty list if no records are found or if offset exceeds records.
+    """
+
+    # --- Input Validation for order_by to prevent SQL Injection ---
+    ALLOWED_SORT_COLUMNS = {
+        "devotional_date",
+        "created_at",
+        "updated_at"
+    }
+    ALLOWED_DIRECTIONS = {"ASC", "DESC"}
+
+    # Default sort order
+    safe_order_by_clause = "devotional_date DESC"
+
+    # Attempt to parse the provided order_by string
+    parts = order_by.strip().split()
+    column_candidate = parts[0].lower() # Normalize column name to lowercase
+    direction_candidate = "DESC" # Default direction
+
+    if len(parts) > 1:
+        direction_candidate = parts[1].upper() # Normalize direction to uppercase
+
+    # Check if the parsed parts are valid
+    if column_candidate in ALLOWED_SORT_COLUMNS and direction_candidate in ALLOWED_DIRECTIONS:
+        # If valid, construct the safe ORDER BY clause
+        safe_order_by_clause = f"{column_candidate} {direction_candidate}"
+    else:
+        # Log a warning if an invalid sort parameter was provided (optional)
+        log.warning(
+            f"Invalid order_by parameter: '{order_by}'. "
+            f"Falling back to default: '{safe_order_by_clause}'."
+        )
+        # Keep the default safe_order_by_clause
+
+    # Ensure limit and offset are non-negative
+    safe_limit = max(0, limit)
+    safe_offset = max(0, offset)
+    # --- End Input Validation ---
+
+
+    async with db_connection() as conn:
+        # Use an f-string ONLY for the validated order_by clause.
+        # Use parameterized query ($1, $2, $3) for user input values (user_id, limit, offset).
+        query = f"""
+            SELECT
+                devotional_id,
+                user_id,
+                devotional_date,
+                reflection,
+                created_at,
+                updated_at
+                -- Add other fields if needed
+            FROM
+                devotionals
+            WHERE
+                user_id = $1
+            ORDER BY
+                {safe_order_by_clause} -- Safely inserting validated sort order
+            LIMIT $2  -- Parameter for limit
+            OFFSET $3; -- Parameter for offset
+        """
+
+        # Execute the query with parameters
+        records = await conn.fetch(
+            query,
+            user_id,      # $1
+            safe_limit,   # $2
+            safe_offset   # $3
+        )
+
+        # Convert the list of asyncpg Record objects to a list of dictionaries
+        return [dict(record) for record in records]
