@@ -3,8 +3,6 @@ from datetime import date
 from typing import Optional, List, Dict, Any
 
 # Function to get verses by book and chapter
-
-
 async def get_verses_by_book_and_chapter(book_name: str, chapter_number: int):
     async with db_connection() as conn:
         # SQL query to get the verses based on book and chapter
@@ -26,9 +24,46 @@ async def get_verses_by_book_and_chapter(book_name: str, chapter_number: int):
         # Convert result into a list of dictionaries
         return [dict(verse) for verse in verses]
 
+#Function to get one specific verse
+async def get_verses_by_book_chapter_and_verse_range(
+    book_name: str,
+    chapter_number: int,
+    verse_number_start: int,
+    verse_number_end: int
+):
+    async with db_connection() as conn:
+        query = """
+            SELECT 
+                v.verse_number,
+                v.text,
+                v.id
+            FROM verses v
+            JOIN chapters c ON v.chapter_id = c.id
+            JOIN books b ON c.book_id = b.id
+            WHERE b.name = $1
+            AND c.chapter_number = $2
+            AND (
+                    ($4 = 0 AND v.verse_number = $3)
+                OR ($4 != 0 AND v.verse_number BETWEEN $3 AND $4)
+            )
+            ORDER BY v.verse_number;
+        """
+
+        verses = await conn.fetch(
+            query,
+            book_name,
+            chapter_number,
+            verse_number_start,
+            verse_number_end
+        )
+
+        await conn.close()
+
+        # Return a dict or None if not found
+        return [dict(v) for v in verses]
+
+
 # Function to search the Bible for specific text
-
-
 async def search_bible_text(search_query: str, limit: int = 50):
     async with db_connection() as conn:
         # Check if the query is a common word or very short

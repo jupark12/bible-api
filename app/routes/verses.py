@@ -1,6 +1,6 @@
 # app/routes/verses.py
 from fastapi import APIRouter, HTTPException, Query, Request
-from app.crud import get_verses_by_book_and_chapter, search_bible_text
+from app.crud import get_verses_by_book_and_chapter, search_bible_text, get_verses_by_book_chapter_and_verse_range
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from app import limiter
@@ -24,8 +24,6 @@ class SearchResult(BaseModel):
 router = APIRouter()
 
 # Define a GET endpoint to retrieve verses by book and chapter
-
-
 @router.get("/verses/{book_name}/{chapter_number}", response_model=List[Verse])
 @limiter.limit("150/minute")
 async def read_verses(request: Request, book_name: str, chapter_number: int):
@@ -37,9 +35,19 @@ async def read_verses(request: Request, book_name: str, chapter_number: int):
     # Return the list of verses
     return verses
 
+# Define a GET endpoint to retrieve verses by book and chapter
+@router.get("/verses/{book_name}/{chapter_number}/{verse_number_start}/{verse_number_end}", response_model=List[Verse])
+@limiter.limit("150/minute")
+async def read_verse_range(request: Request, book_name: str, chapter_number: int, verse_number_start: int, verse_number_end: int):
+    verse = await get_verses_by_book_chapter_and_verse_range(book_name, chapter_number, verse_number_start, verse_number_end)
+
+    if not verse:
+        raise HTTPException(status_code=404, detail="Verse not found")
+
+    # Return the list of verse
+    return verse
+
 # Define a GET endpoint to search the Bible
-
-
 @router.get("/search", response_model=List[SearchResult])
 @limiter.limit("50/minute")
 async def search_bible(
