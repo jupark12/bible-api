@@ -18,9 +18,6 @@ async def get_verses_by_book_and_chapter(book_name: str, chapter_number: int):
         # Fetch the verses
         verses = await conn.fetch(query, book_name, chapter_number)
 
-        # Close the connection
-        await conn.close()
-
         # Convert result into a list of dictionaries
         return [dict(verse) for verse in verses]
 
@@ -56,8 +53,6 @@ async def get_verses_by_book_chapter_and_verse_range(
             verse_number_start,
             verse_number_end
         )
-
-        await conn.close()
 
         # Return a dict or None if not found
         return [dict(v) for v in verses]
