@@ -1,6 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import verses, auth, devotionals
+from app.routes import verses, auth, devotionals, guardian
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from app import limiter
@@ -32,6 +32,7 @@ app.add_middleware(
 app.include_router(verses.router)
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(devotionals.router, tags=["devotionals"])
+app.include_router(guardian.router, prefix="/guardian", tags=["guardian"])
 
 # Handle rate limit exceeded error
 @app.exception_handler(RateLimitExceeded)

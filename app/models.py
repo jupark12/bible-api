@@ -54,3 +54,29 @@ class Devotional(BaseModel):
     favorite_verses: Optional[List[FavoriteVerse]] = []
     created_at: datetime
     updated_at: datetime
+
+
+# --- Guardian (URL -> AI -> Verse) models ---
+class GuardianRequest(BaseModel):
+    url: str
+
+
+class VerseReference(BaseModel):
+    book_name: str
+    chapter_number: int
+    verse_number: int
+
+
+class AIRecommendation(BaseModel):
+    topic: str
+    verse: VerseReference
+    reason: Optional[str] = None
+
+
+class GuardianResponse(BaseModel):
+    url: str
+    topic_detected: Optional[str] = None
+    recommended_verse_ref: Optional[VerseReference] = None
+    reason: Optional[str] = None
+    # DB verse row, e.g. {"id": int, "verse_number": int, "text": str}
+    verse: Optional[dict] = None

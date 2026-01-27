@@ -3,7 +3,7 @@ from passlib.context import CryptContext
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from app.config import SECRET_KEY, ALGORITHM
-from app.models import TokenData, UserInDB
+from app.models import UserInDB
 from app.database import db_connection
 from pydantic import ValidationError
 
@@ -35,11 +35,10 @@ async def get_current_user_from_cookie(request: Request):
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str | None = payload.get("sub")
         if username is None: raise credentials_exception
-        token_data = TokenData(username=username)
     except (JWTError, ValidationError) as e:
         raise credentials_exception
     async with db_connection() as conn:
-        db_user_data = await conn.fetchrow("SELECT * FROM users WHERE username = $1", token_data.username)
+        db_user_data = await conn.fetchrow("SELECT * FROM users WHERE username = $1", username)
     if db_user_data is None: raise credentials_exception
     try:
         user_in_db = UserInDB(**db_user_data)
