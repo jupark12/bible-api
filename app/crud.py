@@ -1,9 +1,6 @@
-import logging
 from app.database import db_connection
 from datetime import date
 from typing import Optional, List, Dict, Any
-
-log = logging.getLogger(__name__)
 
 # Function to get verses by book and chapter
 async def get_verses_by_book_and_chapter(book_name: str, chapter_number: int):
@@ -64,26 +61,6 @@ async def get_verses_by_book_chapter_and_verse_range(
 
         # Return a dict or None if not found
         return [dict(v) for v in verses]
-
-
-# Function to get a single specific verse (by book, chapter, verse number)
-async def get_verse_by_ref(book_name: str, chapter_number: int, verse_number: int):
-    async with db_connection() as conn:
-        query = """
-            SELECT
-                v.verse_number,
-                v.text,
-                v.id
-            FROM verses v
-            JOIN chapters c ON v.chapter_id = c.id
-            JOIN books b ON c.book_id = b.id
-            WHERE b.name = $1
-              AND c.chapter_number = $2
-              AND v.verse_number = $3;
-        """
-
-        verse = await conn.fetchrow(query, book_name, chapter_number, verse_number)
-        return dict(verse) if verse else None
 
 
 # Function to search the Bible for specific text

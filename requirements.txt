@@ -23,8 +23,3 @@ python-multipart
 
 # Testing
 pytest
-
-# Local AI (Hugging Face)
-transformers
-torch
-accelerate
